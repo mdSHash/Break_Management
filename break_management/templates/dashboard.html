@@ -12,43 +12,49 @@
         <th>End Time</th>
         <th>Status</th>
         <th>Agent</th>
-        <th>Action</th>  <!-- Simplified: action column is always shown -->
+        <th>Action</th>  <!-- Action column always shown -->
       </tr>
     </thead>
     <tbody>
-      {% for slot in available_slots %}
+      {% if available_slots.count > 0 or taken_slots.count > 0 %}
+        {% for slot in available_slots %}
+          <tr>
+            <td>{{ slot.start_time|date:"H:i" }}</td>
+            <td>{{ slot.end_time|date:"H:i" }}</td>
+            <td>Available</td>
+            <td>-</td>
+            <td>
+              {% if user.is_manager %}
+                <a href="{% url 'assign_break' slot.id %}">Assign</a>
+              {% else %}
+                <a href="{% url 'request_break' slot.id %}">Request Break</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        
+        {% for slot in taken_slots %}
+          <tr>
+            <td>{{ slot.start_time|date:"H:i" }}</td>
+            <td>{{ slot.end_time|date:"H:i" }}</td>
+            <td>Taken</td>
+            <td>{{ slot.agent.username }}</td>
+            <td>
+              {% if user.is_manager %}
+                <a href="{% url 'release_break' slot.id %}">Release</a>
+              {% elif slot.agent == user %}
+                <a href="{% url 'cancel_break' slot.id %}">Cancel Break</a>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      {% else %}
         <tr>
-          <td>{{ slot.start_time|date:"H:i" }}</td>
-          <td>{{ slot.end_time|date:"H:i" }}</td>
-          <td>Available</td>
-          <td>-</td>
-          <td>
-            {% if user.is_manager %}
-              <a href="{% url 'assign_break' slot.id %}">Assign</a>
-            {% else %}
-              <a href="{% url 'request_break' slot.id %}">Request Break</a>
-            {% endif %}
-          </td>
+          <td colspan="5">No break slots available for today.</td>
         </tr>
-      {% endfor %}
-      
-      {% for slot in taken_slots %}
-        <tr>
-          <td>{{ slot.start_time|date:"H:i" }}</td>
-          <td>{{ slot.end_time|date:"H:i" }}</td>
-          <td>Taken</td>
-          <td>{{ slot.agent.username }}</td>
-          <td>
-            {% if user.is_manager %}
-              <a href="{% url 'release_break' slot.id %}">Release</a>
-            {% elif slot.agent == user %}
-              <a href="{% url 'cancel_break' slot.id %}">Cancel Break</a>
-            {% else %}
-              -
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
+      {% endif %}
     </tbody>
   </table>
 

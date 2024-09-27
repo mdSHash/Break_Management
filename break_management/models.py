@@ -37,24 +37,49 @@ class BreakSettings(models.Model):
     def __str__(self):
         return f"Settings for {self.manager.team_name}"
 
+def initialize_default_break_settings(manager):
+    from django.db import IntegrityError
+
+    # Default settings
+    default_settings = {
+        'working_hours_start': '15:00:00',
+        'working_hours_end': '03:00:00',
+        'break_slots_per_hour': 2,
+    }
+
+    # Create default settings if they do not exist
+    try:
+        BreakSettings.objects.get(manager=manager)  # Check if settings already exist
+    except BreakSettings.DoesNotExist:
+        BreakSettings.objects.create(
+            manager=manager,
+            working_hours_start=default_settings['working_hours_start'],
+            working_hours_end=default_settings['working_hours_end'],
+            break_slots_per_hour=default_settings['break_slots_per_hour'],
+        )
+        print("Default break settings created.")
 
 def create_break_slots(manager):
     settings = BreakSettings.objects.get(manager=manager)
-    
+
     # Calculate the start and end of the working hours
     start_time = datetime.combine(timezone.now().date(), settings.working_hours_start)
     end_time = datetime.combine(timezone.now().date(), settings.working_hours_end)
-    
+
+    # If end_time is before start_time, it means it goes past midnight
+    if end_time < start_time:
+        end_time += timedelta(days=1)  # Move end_time to the next day
+
     # Slot configuration
     slot_duration = timedelta(minutes=15)  # Each break slot is 15 minutes
-    available_slots_per_time = settings.break_slots_per_hour  # Number of available slots set by the manager exp = 3
+    available_slots_per_time = settings.break_slots_per_hour  # Number of available slots set by the manager
     
     # Clear previous slots for the day
     BreakSlot.objects.filter(start_time__date=timezone.now().date()).delete()
 
     current_time = start_time
 
-    while current_time < end_time:
+    while current_time < end_time:  # Changed from != to <
         # Create fixed number of slots for the current time
         for _ in range(available_slots_per_time):
             # Create break slot
@@ -67,39 +92,3 @@ def create_break_slots(manager):
 
         current_time += slot_duration  # Move to the next time interval
 
-
-# def create_break_slots(manager):
-#     settings = BreakSettings.objects.get(manager=manager)
-    
-#     # Calculate the start and end of the working hours
-#     start_time = datetime.combine(timezone.now().date(), settings.working_hours_start)
-#     end_time = datetime.combine(timezone.now().date(), settings.working_hours_end)
-    
-#     # Slot configuration
-#     slot_duration = timedelta(minutes=15)  # Each break slot is 15 minutes
-#     max_daily_breaks = 6  # Maximum of 1.5 hours of break per agent per day (6 slots of 15 min)
-    
-#     # Clear previous slots for the day
-#     BreakSlot.objects.filter(start_time__date=timezone.now().date()).delete()
-
-#     # Fetch all agents in the manager's team
-#     agents = CustomUser.objects.filter(team_name=manager.team_name, is_manager=False)
-
-#     current_time = start_time
-
-#     while current_time < end_time:
-#         for agent in agents:
-#             # Check if the agent has reached their maximum allowed breaks for the day
-#             if agent.total_break_time_taken >= timedelta(minutes=90):  # 1.5 hours
-#                 continue
-            
-#             # Create break slot
-#             slot = BreakSlot.objects.create(
-#                 agent=agent,  # Create for each agent in the team
-#                 start_time=current_time,
-#                 end_time=current_time + slot_duration,
-#                 is_taken=False
-#             )
-#             print(f"Created slot for {agent.username}: {slot.start_time} to {slot.end_time}")  # Debug output
-        
-#         current_time += slot_duration

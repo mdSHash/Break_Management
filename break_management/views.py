@@ -1,9 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from .models import BreakSlot, BreakSettings, create_break_slots, CustomUser
+from .models import BreakSlot, BreakSettings, create_break_slots, CustomUser, initialize_default_break_settings
 from .forms import CustomUserCreationForm, BreakSettingsForm
 from django.contrib.auth import login as auth_login
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.contrib import messages
 from django.utils import timezone  # Correct import
 
@@ -23,18 +23,35 @@ def register(request):
 
 @login_required
 def dashboard(request):
-    # Check if break slots exist for the current day
-    slots_exist = BreakSlot.objects.filter(start_time__date=timezone.now().date()).exists()
+    # Ensure BreakSettings exist for the manager
+    if request.user.is_manager:
+        initialize_default_break_settings(request.user)
 
-    if not slots_exist and request.user.is_manager:
+    # Check if break slots exist for today or until the end of working hours
+    slots_exist = BreakSlot.objects.filter(
+        start_time__date=timezone.now().date()
+    ).exists() or BreakSlot.objects.filter(
+        start_time__date=timezone.now().date() + timedelta(days=1),
+        start_time__gte=datetime.combine(timezone.now().date(), timezone.now().time())
+    ).exists()
+
+    if not slots_exist:
         create_break_slots(request.user)  # Automatically create slots if none exist
 
     # Retrieve all break slots for the user's team
-    slots = BreakSlot.objects.filter(agent__team_name=request.user.team_name)  # Show all slots for the team
+    today = timezone.now().date()
+    tomorrow = today + timedelta(days=1)
+
+    slots = BreakSlot.objects.filter(
+        start_time__date__in=[today, tomorrow]
+    )
 
     # Separate available and taken slots
     available_slots = slots.filter(is_taken=False)
     taken_slots = slots.filter(is_taken=True)
+
+    print(f"Available slots count: {available_slots.count()}")  # Debugging output
+    print(f"Taken slots count: {taken_slots.count()}")  # Debugging output
 
     return render(request, 'dashboard.html', {
         'available_slots': available_slots,
@@ -42,14 +59,19 @@ def dashboard(request):
     })
 
 
+
+
 @login_required
 def request_break(request, slot_id):
     slot = get_object_or_404(BreakSlot, id=slot_id, is_taken=False)
     agent = request.user
 
-    # Check if the agent has enough remaining break time
-    if agent.remaining_break_time() < timedelta(minutes=15):
-        messages.error(request, "You have finished your daily break time.")
+    # Debug output to check the agent's total break time before taking a break
+    print(f"Current total break time taken for {agent.username}: {agent.total_break_time_taken}")
+
+    # Check if the agent has enough remaining break time (90 minutes max)
+    if agent.total_break_time_taken >= timedelta(minutes=90):  # 1.5 hours
+        messages.error(request, "You have reached your daily break limit.")
         return redirect('dashboard')
 
     # Mark the slot as taken
@@ -58,10 +80,14 @@ def request_break(request, slot_id):
     slot.save()
 
     # Update the agent's total break time
-    agent.total_break_time_taken += timedelta(minutes=15)
+    agent.total_break_time_taken += timedelta(minutes=15)  # Increment by 15 minutes
     agent.save()
 
+    print(f"Updated total break time taken for {agent.username}: {agent.total_break_time_taken}")  # Debug output
+
     return redirect('dashboard')
+
+
 
 
 @login_required
