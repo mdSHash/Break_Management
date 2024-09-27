@@ -1,0 +1,56 @@
+<!-- templates/dashboard.html -->
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Dashboard</h2>
+
+  <h3>Available Break Slots</h3>
+  {% if available_slots %}
+    <table border="1" cellpadding="10" cellspacing="0">
+      <thead>
+        <tr>
+          <th>Start Time</th>
+          <th>End Time</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for slot in available_slots %}
+          <tr>
+            <td>{{ slot.start_time }}</td>
+            <td>{{ slot.end_time }}</td>
+            <td>
+              <a href="{% url 'request_break' slot.id %}">Request Break</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No available slots.</p>
+  {% endif %}
+
+  <h3>Taken Break Slots</h3>
+  {% if taken_slots %}
+    <table border="1" cellpadding="10" cellspacing="0">
+      <thead>
+        <tr>
+          <th>Start Time</th>
+          <th>End Time</th>
+          <th>Agent</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for slot in taken_slots %}
+          <tr>
+            <td>{{ slot.start_time }}</td>
+            <td>{{ slot.end_time }}</td>
+            <td>{{ slot.agent.username }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No taken slots.</p>
+  {% endif %}
+{% endblock %}
