@@ -10,10 +10,13 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('register/', views.register, name='register'),
-
-    # Dashboard view
+    
     path('dashboard/', views.dashboard, name='dashboard'),
-
+    path('request_break/<int:slot_id>/', views.request_break, name='request_break'),
+    path('release_break/<int:slot_id>/', views.release_break, name='release_break'),
+    path('assign_break/<int:slot_id>/', views.assign_break, name='assign_break'),
+    path('cancel_break/<int:slot_id>/', views.cancel_break, name='cancel_break'),
+    
     # Request break slot by agent
     path('request-break/<int:slot_id>/', views.request_break, name='request_break'),
 

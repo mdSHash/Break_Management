@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Assign Break Slot</h2>
+  <p>Assigning slot from {{ slot.start_time|date:"H:i" }} to {{ slot.end_time|date:"H:i" }}</p>
+  <form method="post">
+    {% csrf_token %}
+    <label for="agent_username">Select Agent:</label>
+    <select name="agent_username" id="agent_username">
+      {% for agent in agents %}
+        <option value="{{ agent.username }}">{{ agent.username }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Assign Break</button>
+  </form>
+{% endblock %}
