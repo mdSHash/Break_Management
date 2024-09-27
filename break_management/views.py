@@ -98,12 +98,26 @@ def manage_settings(request):
         form = BreakSettingsForm(request.POST, instance=settings)
         if form.is_valid():
             form.save()
-            create_break_slots(request.user)  # Adjusts break slots after changes
+
+            # Delete all existing break slots for today (and tomorrow if necessary)
+            today = timezone.now().date()
+            tomorrow = today + timedelta(days=1)
+
+            # Delete all slots for today and tomorrow to account for working hours that cross midnight
+            BreakSlot.objects.filter(
+                start_time__date__in=[today, tomorrow]
+            ).delete()
+
+            # Create new break slots based on the updated settings
+            create_break_slots(request.user)
+
+            messages.success(request, "Break settings updated, and new slots have been created.")
             return redirect('dashboard')
     else:
         form = BreakSettingsForm(instance=settings)
 
     return render(request, 'break_management/manage_settings.html', {'form': form})
+
 
 
 @login_required
